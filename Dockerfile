@@ -7,7 +7,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # Build wheels for runtime-only installation (no compilers in final image)
-COPY app/requirements.txt .
+COPY  requirements.txt .
 RUN python -m pip install --upgrade pip wheel && \
     pip wheel --no-cache-dir --wheel-dir /wheels -r requirements.txt
 
@@ -35,7 +35,7 @@ RUN python -m pip install --no-cache-dir --find-links=/wheels -r requirements.tx
     rm -rf /wheels
 
 # Copy source
-COPY app/ /app/
+COPY  . /app/
 
 # Make sure files are owned by non-root user
 RUN chown -R ${UID}:${GID} /app

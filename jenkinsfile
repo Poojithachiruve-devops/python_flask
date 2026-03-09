@@ -1,0 +1,90 @@
+/*Writing the jenkins file*/
+/*jenkins installed on kubenretes*/
+pipeline{
+  agent {label "docker"}
+   environment{
+    IMAGE_NAME="python_app"
+    IMAGE_TAG="${BUILD_NUMBER}"
+    GIT_URL="https://github.com/Poojithachiruve-devops/python_flask.git"
+    DOCKER_HUB_REPO=app/pythonapp
+    IMAGE_TAG="v1"
+    DOCKER_CREDENTIALS="credntial_name_injenkins"
+   }
+   stages{
+    stage("checkout"){
+        step{
+            echo "checking out source code"
+             git branch:'main',url:${GIT_URL}
+        }
+
+    }
+    stage("code_build"){
+        step{
+            sh'''
+            mvn clean complie
+            '''
+        }
+    }
+
+   stage("unit_test"){
+    steps{
+        echo "Running unit_test"
+        sh'''
+        mvn test
+        '''
+    }
+   }
+    post{
+        always{
+            junit '**/target/surefire-reports/*.xml'
+        }
+    }
+    }
+    stage("Docker_build & tag & push"){
+        step{
+      withCredentials([usernamePassword(credentialid:"${DOCKER_CREDENTIALS}",usernameVariable:"DOCKER_USER,
+      passwordVariable:DOCKER_PASS")]){
+        sh"""
+        echo "Buildding docker image..."
+        docker build -t ${DOCKER_HUB_REPO}:${IMAGE_TAG} .
+        echo "tagging the image"
+        docker tag  ${DOCKER_HUB_REPO}:${IMAGE_TAG} ${DOCKER_HUB_REPO}:latest
+        echo "pushing the image"
+        docker push ${DOCKER_HUB_REPO}:${IMAGE_TAG}
+        docker push ${DOCKER_HUB_REPO}:latest
+      }
+
+        }
+    }
+    stage("image_scan){
+    step{
+     sh"""
+     trivy image\
+     --format table\
+     --output
+     trivy-report.txt \
+     ${DOCKER_HUB_REPO}:${IMAGE_TAG}
+     """
+     archiveArtifacts artifacts:'trivy-report.txt'
+    }
+
+   }
+   stage("helm_deploy){
+   steps{
+          sh """
+         Kubectl login ${CLUSTER_URL}
+            kubectl get ns ${NAMESPACE} 
+            helm upgrade --install python ./helm-chart\
+           --namespace dev 
+          --set ${IMAGE}=${IMAGE}:${TAG}
+
+          """
+        }
+      }
+
+   }
+   }
+
+      }
+      }
+      

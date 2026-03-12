@@ -19,6 +19,14 @@ pipeline {
                 git branch: 'main', url: "${GIT_URL}"
             }
         }
+stage('install Dependencies'){
+steps{
+sh'''
+python3 -m venv venv
+pip install -r requirement.txt
+'''
+}
+}
 
         stage('Docker Build & Push') {
             steps {
@@ -54,18 +62,16 @@ pipeline {
 
         stage('Helm Deploy') {
             steps {
-                withCredentials([file(credentialsId: 'kubeconfig-stage', variable: 'KUBECONFIG_FILE')]) {
+                withCredentials([file(credentialsId: 'kubeconfig)]) {
                     sh '''
-                        export KUBECONFIG=$KUBECONFIG_FILE
 
-                        kubectl get ns ${NAMESPACE} || kubectl create ns ${NAMESPACE}
-
+                        kubectl get ns ${NAMESPACE} 
                         helm upgrade ${RELEASE} ${CHART_PATH} \
                             -n ${NAMESPACE} \
-                            -f ${VALUES} \
-                            --install \
-                            --atomic
-                    '''
+                            -f ${VALUES} \    
+                    --set image.repository=${DOCKER_HUB_REPO} \
+                    --set image.tag=${IMAGE_TAG}
+
                 }
             }
         }
@@ -78,3 +84,4 @@ pipeline {
         }
     }
 }
+
